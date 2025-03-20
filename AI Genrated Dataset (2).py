@@ -119,16 +119,16 @@ if "expanded_nodes" not in st.session_state:
     st.session_state.expanded_nodes = set()
 
 # Sidebar: AI Thought Process
-st.sidebar.title("🧠 AI Thought Process")
-st.sidebar.subheader("📌 AI's Current Knowledge (Beliefs)")
+st.sidebar.title(" AI Thought Process")
+st.sidebar.subheader(" AI's Current Knowledge (Beliefs)")
 for feature, deps in st.session_state.beliefs.items():
     st.sidebar.write(f"For **{feature}**, the AI believes these dependencies exist.")
 
-st.sidebar.subheader("🎯 AI's Goal (Desires)")
+st.sidebar.subheader(" AI's Goal (Desires)")
 for feature, desire in st.session_state.desires.items():
     st.sidebar.write(f"For **{feature}**, {desire}")
 
-st.sidebar.subheader("🚀 AI's Next Step (Intentions)")
+st.sidebar.subheader(" AI's Next Step (Intentions)")
 for feature, intention in st.session_state.intentions.items():
     st.sidebar.write(f"For **{feature}**, {intention}")
 
@@ -183,8 +183,8 @@ for parent, children in list(st.session_state.dependencies.items()):
                 agent.refine_desires(item)
 
 # Step 3: Generate Graph
-st.subheader("📊 Generate Dependency Graph")
-if st.button("🔄 Generate Graph"):
+st.subheader(" Generate Dependency Graph")
+if st.button(" Generate Graph"):
     G = nx.DiGraph()
     for parent, children in st.session_state.selected_dependencies.items():
         for child in children:
@@ -201,9 +201,9 @@ if st.button("🔄 Generate Graph"):
 import random
 
 # Step 4: Generate Synthetic Dataset
-st.subheader("📊 Step 4: Generate Synthetic Dataset")
+st.subheader(" Step 4: Generate Synthetic Dataset")
 
-if st.button("📄 Generate Dataset"):
+if st.button(" Generate Dataset"):
     if not st.session_state.selected_dependencies:
         st.warning("⚠️ No dependencies selected. Please expand some dependencies first.")
     else:
