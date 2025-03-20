@@ -133,10 +133,10 @@ for feature, intention in st.session_state.intentions.items():
     st.sidebar.write(f"For **{feature}**, {intention}")
 
 # Main App
-st.title("🤖 AI-Powered Dynamic Dependency Analyzer")
+st.title(" AI-Powered Dynamic Dependency Analyzer")
 
 # Step 1: Enter Target Feature
-st.subheader("🟢 Step 1: Enter a Target Feature")
+st.subheader(" Step 1: Enter a Target Feature")
 target_feature = st.text_input("Enter the Target Feature (e.g., Car Performance):")
 
 if target_feature and target_feature not in st.session_state.dependencies:
@@ -150,7 +150,7 @@ if target_feature and target_feature not in st.session_state.dependencies:
     agent.refine_desires(target_feature)
 
 # Step 2: Select & Confirm Dependencies
-st.subheader("🟡 Step 2: Select & Expand Dependencies")
+st.subheader("Step 2: Select & Expand Dependencies")
 for parent, children in list(st.session_state.dependencies.items()):
     st.write(f"### Dependencies for: {parent}")
 
