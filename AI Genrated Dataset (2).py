@@ -78,7 +78,7 @@ def get_ai_dependencies(feature, full_context=None):
         raw_output = response.text if response.text else "EMPTY RESPONSE"
 
         if raw_output == "EMPTY RESPONSE":
-            st.warning(f"⚠️ AI did not return dependencies for {feature}. Using fallback values.")
+            st.warning(f"⚠ AI did not return dependencies for {feature}. Using fallback values.")
             return {"Primary": [f"Placeholder Dependency {i+1} (for {feature}{context_string})" for i in range(5)]}, {}
 
         primary_dependencies = []
@@ -100,7 +100,7 @@ def get_ai_dependencies(feature, full_context=None):
         return {"Primary": primary_dependencies[:20]}, explanations  # Trim to 20 max
 
     except Exception as e:
-        st.error(f"⚠️ AI Error: {e}")
+        st.error(f" AI Error: {e}")
         return {"Primary": [f"Error Handling (for {feature}{context_string})"]}, {}
 
 # Initialize session state for dependencies
@@ -114,7 +114,7 @@ if "expanded_nodes" not in st.session_state:
     st.session_state.expanded_nodes = set()
 
 # Main App
-st.title("🤖 AI-Powered Dynamic Dependency Analyzer")
+st.title(" AI-Powered Dynamic Dependency Analyzer")
 
 # Step 1: Enter Target Feature
 st.subheader("Step 1: Enter a Target Feature")
@@ -163,7 +163,7 @@ for parent, children in list(st.session_state.dependencies.items()):
         if manual_dependency not in selected:
             selected.append(manual_dependency)  # Auto-select it
 
-    if st.button(f"✅ Confirm & Expand {parent}", key=f"confirm_{parent}"):
+    if st.button(f" Confirm & Expand {parent}", key=f"confirm_{parent}"):
         with st.spinner("Updating AI beliefs, desires, and intentions..."):
             st.session_state.selected_dependencies[parent] = selected
             st.session_state.expanded_nodes.add(parent)
@@ -317,7 +317,7 @@ def generate_interactive_graph():
     return graph_path
 
 # Button to generate the graph
-if st.button("🔄 Generate Interactive Graph"):
+if st.button(" Generate Interactive Graph"):
     graph_html = generate_interactive_graph()
     with open(graph_html, "r", encoding="utf-8") as file:
         st.components.v1.html(file.read(), height=550)
@@ -325,14 +325,14 @@ if st.button("🔄 Generate Interactive Graph"):
 # Button to download the graph
 if os.path.exists(tempfile.gettempdir() + "/interactive_graph.html"):
     with open(tempfile.gettempdir() + "/interactive_graph.html", "rb") as file:
-        st.download_button(label="📥 Download Interactive Graph", data=file, file_name="graph.html", mime="text/html")
+        st.download_button(label=" Download Interactive Graph", data=file, file_name="graph.html", mime="text/html")
 
 # Step 4: Generate Synthetic Dataset
 st.subheader("Step 4: Generate Synthetic Dataset")
 
-if st.button("📄 Generate Dataset"):
+if st.button(" Generate Dataset"):
     if not st.session_state.selected_dependencies:
-        st.warning("⚠️ No dependencies selected. Please expand some dependencies first.")
+        st.warning(" No dependencies selected. Please expand some dependencies first.")
     else:
         # Extract all features and determine depth
         feature_levels = {}  # {feature: depth}
@@ -353,7 +353,7 @@ if st.button("📄 Generate Dataset"):
         all_features = list(feature_levels.keys())
 
         if not all_features:
-            st.warning("⚠️ No features available for dataset generation.")
+            st.warning(" No features available for dataset generation.")
         else:
             # First feature is the target variable
             target_feature = root_features[0]
@@ -392,13 +392,13 @@ if st.button("📄 Generate Dataset"):
 
             # Convert to DataFrame
             df = pd.DataFrame(data)
-            st.write("### 📝 Generated Dataset")
+            st.write("###  Generated Dataset")
             st.dataframe(df)
 
             # Provide CSV download
             csv = df.to_csv(index=False).encode("utf-8")
             st.download_button(
-                label="📥 Download CSV",
+                label=" Download CSV",
                 data=csv,
                 file_name="synthetic_dataset.csv",
                 mime="text/csv"
