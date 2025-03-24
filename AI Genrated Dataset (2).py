@@ -6,9 +6,14 @@ from pyvis.network import Network
 import tempfile
 import os
 import google.generativeai as genai
+import time
+import re
+import random
+from dotenv import load_dotenv
 
 # Configure Google AI API
-genai.configure(api_key="AIzaSyDp6sMaVDOCva53AA_yzdGZ9vb2fSDAq-8")  # Replace with your actual API Key
+load_dotenv()  # Load environment variables from .env file
+genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))  # Replace with your actual API Key
 
 # Initialize session state for AI beliefs, desires, intentions, and rewards
 if "beliefs" not in st.session_state:
@@ -46,67 +51,57 @@ class RLBDIAgent:
 # Initialize AI Agent
 agent = RLBDIAgent()
 
-import re
-
 def normalize_text(text):
     """ Normalize AI response by converting inconsistent spaces/tabs into a standard format. """
     return re.sub(r"\*\s{2,}", "* ", text)  # Replace extra spaces after asterisks with a single space
-def get_ai_dependencies(feature):
-    """ 
-    Fetch AI-generated dependencies using Gemini AI while ensuring meaningful suggestions.
-    This version ensures that only Primary dependencies (10-20) are extracted.
-    """
+
+def get_ai_dependencies(feature, full_context=None):
+    """ Fetch AI-generated dependencies while ensuring full hierarchical context. """
+    context_string = f" (for {full_context})" if full_context else ""
+
     prompt = (
-        f"List at least 10 to 20 primary dependencies for '{feature}', without secondary or tertiary categories. "
-        "Each dependency should be formatted as:\n"
-        "* **feature_name** (reason why it is a primary dependency)\n"
-        "Focus only on Primary dependencies—no secondary or tertiary ones."
+        f"Identify at least **10-20 primary dependencies** for '{feature}{context_string}', ensuring they are **directly relevant**."
+        " Format each dependency as:\n"
+        "* **Dependency Name** – (Reason why it is a primary dependency)\n"
+        "\n"
+        "### Important Instructions:\n"
+        "1. **Focus Only on Primary Dependencies** – No secondary ones.\n"
+        f"2. **Ensure Relevance** – {feature} Dependencies must have a **strong logical connection** to the {context_string}.\n"
+        "3. **Avoid Generic Dependencies** – Must have a clear, well-explained purpose.\n"
+        "4. **Maintain Clarity & Structure** – Use precise technical terms.\n"
+        "\n"
+        "Proceed with generating the list."
     )
-    
+
     try:
         response = genai.GenerativeModel("gemini-2.0-flash").generate_content(prompt)
         raw_output = response.text if response.text else "EMPTY RESPONSE"
 
-        # ✅ Normalize text before parsing
-        normalized_output = normalize_text(raw_output)
-
-        # ✅ Debugging: Print raw AI response
-        print("\n=== AI RAW RESPONSE ===\n", raw_output, "\n====================\n")
-
         if raw_output == "EMPTY RESPONSE":
-            return {"Primary": []}, {}
+            st.warning(f"⚠️ AI did not return dependencies for {feature}. Using fallback values.")
+            return {"Primary": [f"Placeholder Dependency {i+1} (for {feature}{context_string})" for i in range(5)]}, {}
 
-        # ✅ Extract Primary dependencies only
         primary_dependencies = []
         explanations = {}
 
-        for line in normalized_output.split("\n"):
+        for line in raw_output.split("\n"):
             line = line.strip()
-            
-            if line.startswith("* **"):  # ✅ Ensure correct parsing of Primary dependencies
-                match = re.match(r"\*\s*\*\*([^*]+)\*\*\s*\(([^)]+)\)", line)
-                if match:
-                    feature_name, reason = match.groups()
-                    primary_dependencies.append(feature_name.strip())
-                    explanations[feature_name.strip()] = reason.strip()
+            match = re.match(r"^\*\s*\**(.+?)\**\s*\((.+?)\)$", line)
+            if match:
+                dependency_name, reason = match.groups()
+                full_dependency_name = f"{dependency_name} (for {feature}{context_string})"
+                primary_dependencies.append(full_dependency_name)
+                explanations[full_dependency_name] = reason.strip()
 
-        # ✅ Ensure at least 10 and at most 20 dependencies
         if len(primary_dependencies) < 10:
-            print("⚠️ Warning: AI generated fewer than 10 Primary dependencies. Consider refining the prompt.")
-        elif len(primary_dependencies) > 20:
-            primary_dependencies = primary_dependencies[:20]  # Trim to 20 max
+            default_fallbacks = [f"Feature {i+1} (for {feature}{context_string})" for i in range(10 - len(primary_dependencies))]
+            primary_dependencies.extend(default_fallbacks)
 
-        # 🚨 Debugging: Print extracted dependencies
-        print("\n=== EXTRACTED DEPENDENCIES ===\n", primary_dependencies, "\n====================\n")
-
-        # ✅ Keeping the structure unchanged (storing only Primary in 'dependencies' key)
-        return {"Primary": primary_dependencies}, explanations
+        return {"Primary": primary_dependencies[:20]}, explanations  # Trim to 20 max
 
     except Exception as e:
         st.error(f"⚠️ AI Error: {e}")
-        return {"Primary": []}, {}
-
-
+        return {"Primary": [f"Error Handling (for {feature}{context_string})"]}, {}
 
 # Initialize session state for dependencies
 if "dependencies" not in st.session_state:
@@ -118,26 +113,12 @@ if "selected_dependencies" not in st.session_state:
 if "expanded_nodes" not in st.session_state:
     st.session_state.expanded_nodes = set()
 
-# Sidebar: AI Thought Process
-st.sidebar.title(" AI Thought Process")
-st.sidebar.subheader(" AI's Current Knowledge (Beliefs)")
-for feature, deps in st.session_state.beliefs.items():
-    st.sidebar.write(f"For **{feature}**, the AI believes these dependencies exist.")
-
-st.sidebar.subheader(" AI's Goal (Desires)")
-for feature, desire in st.session_state.desires.items():
-    st.sidebar.write(f"For **{feature}**, {desire}")
-
-st.sidebar.subheader(" AI's Next Step (Intentions)")
-for feature, intention in st.session_state.intentions.items():
-    st.sidebar.write(f"For **{feature}**, {intention}")
-
 # Main App
-st.title(" AI-Powered Dynamic Dependency Analyzer")
+st.title("🤖 AI-Powered Dynamic Dependency Analyzer")
 
 # Step 1: Enter Target Feature
-st.subheader(" Step 1: Enter a Target Feature")
-target_feature = st.text_input("Enter the Target Feature (e.g., Car Performance):")
+st.subheader("Step 1: Enter a Target Feature")
+target_feature = st.text_input("Enter the Target Feature (e.g., AI recruiter agent):")
 
 if target_feature and target_feature not in st.session_state.dependencies:
     deps, explanations = get_ai_dependencies(target_feature)
@@ -158,52 +139,198 @@ for parent, children in list(st.session_state.dependencies.items()):
         if items:
             st.markdown(f"**🔹 {category} Dependencies:**")
             for item in items:
+                base_feature_name = re.sub(r'\*\*\s*–.*|\s*\(.*', '', item).strip()  # Clean up the item
                 explanation = st.session_state.explanations[parent].get(item, "No explanation provided.")
-                st.markdown(f"- **{item}**: {explanation}")
+                cleaned_explanation = re.sub(r'\s*\(.*\)', '', explanation).strip()  # Remove anything in parentheses
+                st.markdown(f"- **{base_feature_name}**: {cleaned_explanation}")
+
+    valid_options = sum(children.values(), [])  # Flatten list of dependencies
+    previous_selection = st.session_state.selected_dependencies.get(parent, [])
+    filtered_selection = [item for item in previous_selection if item in valid_options]
+
+    base_feature_names = [re.sub(r'\*\*\s*–.*|\s*\(.*', '', item).strip() for item in valid_options]  # Extract only the feature name
 
     selected = st.multiselect(
         f"Select dependencies for {parent}:",
-        sum(children.values(), []),
-        default=st.session_state.selected_dependencies.get(parent, []),
+        options=base_feature_names,  # Use base feature names for the dropdown
+        default=filtered_selection,  # Retain only valid defaults
     )
 
+    manual_dependency = st.text_input(f"Add a custom dependency for {parent} (optional):", key=f"manual_{parent}")
+    if manual_dependency:
+        if manual_dependency not in base_feature_names:
+            base_feature_names.append(manual_dependency)  # Dynamically add new user dependency
+        if manual_dependency not in selected:
+            selected.append(manual_dependency)  # Auto-select it
+
     if st.button(f"✅ Confirm & Expand {parent}", key=f"confirm_{parent}"):
-        st.session_state.selected_dependencies[parent] = selected
-        st.session_state.expanded_nodes.add(parent)
+        with st.spinner("Updating AI beliefs, desires, and intentions..."):
+            st.session_state.selected_dependencies[parent] = selected
+            st.session_state.expanded_nodes.add(parent)
 
-        # Expand AI Dependencies
-        for item in selected:
-            if item not in st.session_state.dependencies:
-                deps, explanations = get_ai_dependencies(item)
-                st.session_state.dependencies[item] = deps
-                st.session_state.explanations[item] = explanations
+            # Update AI Intentions after selection
+            agent.update_intentions(parent, selected)
 
-                # ✅ Update BDI
-                agent.update_beliefs(item, deps)
-                agent.refine_desires(item)
+            # Expand AI Dependencies
+            for item in selected:
+                if item not in st.session_state.dependencies:
+                    deps, explanations = get_ai_dependencies(item)
+                    st.session_state.dependencies[item] = deps
+                    st.session_state.explanations[item] = explanations
 
-# Step 3: Generate Graph
-st.subheader(" Generate Dependency Graph")
-if st.button(" Generate Graph"):
-    G = nx.DiGraph()
-    for parent, children in st.session_state.selected_dependencies.items():
-        for child in children:
-            G.add_edge(parent, child)
+                    # Update BDI
+                    agent.update_beliefs(item, deps)
+                    agent.refine_desires(item)
 
-    net = Network(height="600px", width="100%", directed=True)
-    net.from_nx(G)
+            # Simulate loading of AI beliefs, desires, and intentions
+            time.sleep(2)  # Simulate a delay for loading data
 
-    temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".html")
-    net.save_graph(temp_file.name)
-    st.components.v1.html(open(temp_file.name, "r").read(), height=600)
-    os.unlink(temp_file.name)
+            # Display the updated BDI state
+            st.success("AI beliefs, desires, and intentions updated successfully!")
 
-import random
+# Display Current BDI State
+# Display Current BDI State
+st.subheader("Current BDI State")
+
+# Create a placeholder for the BDI state
+bdi_placeholder = st.empty()
+
+# Display Beliefs
+with bdi_placeholder.container():
+    st.markdown("Beliefs")
+    for feature, deps in st.session_state.beliefs.items():
+        st.write(f"- **{feature}**: {', '.join(deps)}")
+
+    # Display Desires
+    st.markdown("Desires")
+    for feature, desire in st.session_state.desires.items():
+        st.write(f"- **{feature}**: {desire}")
+
+    # Display Intentions
+    st.markdown("Intentions")
+    for feature, intention in st.session_state.intentions.items():
+        st.write(f"- **{feature}**: {intention}")
+
+# Wait for 2 seconds before clearing the BDI state
+time.sleep(5)
+
+# Clear the BDI state
+bdi_placeholder.empty()
+# Add this function to adjust the zoom level
+if "zoom_level" not in st.session_state:
+    st.session_state.zoom_level = 1.0 
+
+
+
+# Function to set graph options
+import streamlit as st
+from pyvis.network import Network
+import tempfile
+import os
+
+# Function to enforce proper left-to-right hierarchy
+def set_graph_options(net):
+    options = """
+    {
+      "layout": {
+        "hierarchical": {
+          "enabled": true,
+          "direction": "LR",
+          "sortMethod": "directed",
+          "levelSeparation": 300,
+          "nodeSpacing": 200,
+          "treeSpacing": 300,
+          "blockShifting": false,
+          "edgeMinimization": true,
+          "parentCentralization": true
+        }
+      },
+      "physics": {
+        "enabled": false
+      },
+      "interaction": {
+        "hover": true,
+        "dragNodes": true,
+        "dragView": true,
+        "zoomView": true
+      },
+      "edges": {
+        "color": {
+          "color": "darkblue"
+        },
+        "width": 2.5,
+        "smooth": {
+          "type": "cubicBezier",
+          "forceDirection": "horizontal"
+        }
+      },
+      "nodes": {
+        "font": {
+          "size": 14,
+          "face": "Arial"
+        },
+        "shape": "box",
+        "margin": 15
+      }
+    }
+    """
+    net.set_options(options)
+
+# Function to recursively assign levels and ensure proper left-to-right expansion
+def add_node_with_level(net, node, level, added_nodes, node_levels):
+    if node not in added_nodes:
+        net.add_node(node, label=node, shape="box", size=30, color="lightblue", level=level)
+        added_nodes.add(node)
+        node_levels[node] = level
+
+    if node in st.session_state.selected_dependencies:
+        for child in st.session_state.selected_dependencies[node]:
+            if child not in added_nodes:
+                net.add_node(child, label=child, shape="box", size=20, color="lightgreen", level=level + 1)
+                added_nodes.add(child)
+                node_levels[child] = level + 1
+            
+            net.add_edge(node, child, color="darkblue", width=2.5)
+            # Recursively assign levels for deeper dependencies
+            add_node_with_level(net, child, level + 1, added_nodes, node_levels)
+
+# Function to generate the interactive left-to-right dependency graph
+def generate_interactive_graph():
+    net = Network(height="750px", width="100%", directed=True)
+
+    set_graph_options(net)
+
+    if "selected_dependencies" not in st.session_state:
+        st.session_state.selected_dependencies = {}
+
+    added_nodes = set()
+    node_levels = {}
+
+    # Assign levels recursively to the graph structure
+    for parent in st.session_state.selected_dependencies.keys():
+        add_node_with_level(net, parent, level=0, added_nodes=added_nodes, node_levels=node_levels)
+
+    temp_dir = tempfile.gettempdir()
+    graph_path = os.path.join(temp_dir, "interactive_graph.html")
+    net.write_html(graph_path)
+
+    return graph_path
+
+# Button to generate the graph
+if st.button("🔄 Generate Interactive Graph"):
+    graph_html = generate_interactive_graph()
+    with open(graph_html, "r", encoding="utf-8") as file:
+        st.components.v1.html(file.read(), height=550)
+
+# Button to download the graph
+if os.path.exists(tempfile.gettempdir() + "/interactive_graph.html"):
+    with open(tempfile.gettempdir() + "/interactive_graph.html", "rb") as file:
+        st.download_button(label="📥 Download Interactive Graph", data=file, file_name="graph.html", mime="text/html")
 
 # Step 4: Generate Synthetic Dataset
-st.subheader(" Step 4: Generate Synthetic Dataset")
+st.subheader("Step 4: Generate Synthetic Dataset")
 
-if st.button(" Generate Dataset"):
+if st.button("📄 Generate Dataset"):
     if not st.session_state.selected_dependencies:
         st.warning("⚠️ No dependencies selected. Please expand some dependencies first.")
     else:
