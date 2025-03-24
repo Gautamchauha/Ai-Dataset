@@ -78,7 +78,7 @@ def get_ai_dependencies(feature, full_context=None):
         raw_output = response.text if response.text else "EMPTY RESPONSE"
 
         if raw_output == "EMPTY RESPONSE":
-            st.warning(f"⚠ AI did not return dependencies for {feature}. Using fallback values.")
+            st.warning(f" AI did not return dependencies for {feature}. Using fallback values.")
             return {"Primary": [f"Placeholder Dependency {i+1} (for {feature}{context_string})" for i in range(5)]}, {}
 
         primary_dependencies = []
