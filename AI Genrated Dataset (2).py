@@ -10,7 +10,58 @@ import time
 import re
 import random
 from dotenv import load_dotenv
+import json
 
+
+
+
+# Initialize session state for history storage
+if "history" not in st.session_state:
+    st.session_state.history = []
+
+# Function to save current session data to history
+def save_to_history():
+    session_data = {
+        "dependencies": st.session_state.dependencies,
+        "selected_dependencies": st.session_state.selected_dependencies,
+        "beliefs": st.session_state.beliefs,
+        "desires": st.session_state.desires,
+        "intentions": st.session_state.intentions,
+    }
+    st.session_state.history.append(session_data)
+    st.success("Analysis saved to history!")
+
+# Function to load a previous session
+def load_from_history(index):
+    session_data = st.session_state.history[index]
+    st.session_state.dependencies = session_data["dependencies"]
+    st.session_state.selected_dependencies = session_data["selected_dependencies"]
+    st.session_state.beliefs = session_data["beliefs"]
+    st.session_state.desires = session_data["desires"]
+    st.session_state.intentions = session_data["intentions"]
+    st.success("Loaded previous analysis!")
+
+# Function to export history as JSON
+def export_history():
+    history_json = json.dumps(st.session_state.history, indent=4)
+    st.download_button(
+        label="Download History JSON",
+        data=history_json,
+        file_name="dependency_analysis_history.json",
+        mime="application/json"
+    )
+
+# Sidebar for history panel
+with st.sidebar:
+    st.header("📜 Analysis History")
+    if st.button("Save Analysis"):
+        save_to_history()
+    
+    if st.session_state.history:
+        for idx, session in enumerate(st.session_state.history):
+            if st.button(f"Load Analysis {idx + 1}"):
+                load_from_history(idx)
+        export_history()
 # Configure Google AI API
 load_dotenv()  # Load environment variables from .env file
 genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))  # Replace with your actual API Key
