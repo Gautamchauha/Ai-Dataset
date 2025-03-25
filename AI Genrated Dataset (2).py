@@ -402,8 +402,8 @@ if st.button(" Generate Dataset"):
                 data=csv,
                 file_name="synthetic_dataset.csv",
                 mime="text/csv"
-            )
- # Step 5: History of Past Analyses
+            )                                              
+            # Step 5: History of Past Analyses
 st.sidebar.subheader("📜 History")
 
 # Initialize history in session state
