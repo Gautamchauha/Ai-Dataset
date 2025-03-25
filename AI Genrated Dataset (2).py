@@ -403,3 +403,31 @@ if st.button(" Generate Dataset"):
                 file_name="synthetic_dataset.csv",
                 mime="text/csv"
             )
+ # Step 5: History of Past Analyses
+st.sidebar.subheader("📜 History")
+
+# Initialize history in session state
+if "history" not in st.session_state:
+    st.session_state.history = []
+
+# Store past analyses when dependencies are confirmed
+if st.session_state.selected_dependencies:
+    timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
+    current_analysis = {
+        "time": timestamp,
+        "selected_dependencies": st.session_state.selected_dependencies.copy()
+    }
+
+    # Avoid duplicates
+    if not any(h["selected_dependencies"] == current_analysis["selected_dependencies"] for h in st.session_state.history):
+        st.session_state.history.append(current_analysis)
+
+# Show history in sidebar
+for idx, record in enumerate(reversed(st.session_state.history)):
+    with st.sidebar.expander(f"🔄 {record['time']}"):
+        for parent, selected in record["selected_dependencies"].items():
+            st.write(f"**{parent}**: {', '.join(selected) if selected else 'No selections'}")
+
+        if st.button(f"🔄 Load {record['time']}", key=f"load_{idx}"):
+            st.session_state.selected_dependencies = record["selected_dependencies"]
+            st.success("History loaded successfully!")
