@@ -12,7 +12,6 @@ import random
 from dotenv import load_dotenv
 import json
 from database import save_to_database, load_from_database
-import streamlit as st
 import uuid  # For generating unique session IDs
 
 # Initialize session state variables
