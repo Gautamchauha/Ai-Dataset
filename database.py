@@ -1,4 +1,4 @@
-import psycopg2 # type: ignore
+import psycopg2 
 import json
 import os
 from dotenv import load_dotenv
