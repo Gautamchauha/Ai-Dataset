@@ -10,51 +10,34 @@ import time
 import re
 import random
 from dotenv import load_dotenv
+import mysql.connector
 import json
-from database import save_to_database, load_from_database
 import uuid  # For generating unique session IDs
 
 # Initialize session state variables
 if "session_id" not in st.session_state:
     st.session_state.session_id = str(uuid.uuid4())  # Generate a unique session ID
+# Load environment variables
+load_dotenv()
+MYSQL_HOST = os.getenv("MYSQL_HOST")
+MYSQL_USER = os.getenv("MYSQL_USER")
+MYSQL_PASSWORD = os.getenv("MYSQL_PASSWORD")
+MYSQL_DATABASE = os.getenv("MYSQL_DATABASE")
 
-# Sidebar for history panel
-with st.sidebar:
-    st.header(" Analysis History")
+# Establish MySQL Connection
+def get_db_connection():
+    return mysql.connector.connect(
+        host=MYSQL_HOST,
+        user=MYSQL_USER,
+        password=MYSQL_PASSWORD,
+        database=MYSQL_DATABASE
+    )
 
-    if st.button("Save Analysis"):
-        save_to_database(st.session_state.session_id, 
-                         st.session_state.dependencies, 
-                         st.session_state.selected_dependencies,
-                         st.session_state.beliefs, 
-                         st.session_state.desires, 
-                         st.session_state.intentions)
-        st.success("Analysis saved to PostgreSQL!")
+def save_to_database():
+    """Save session history to MYSQL."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
 
-    history_data = load_from_database()
-
-    if history_data:
-        for idx, row in enumerate(history_data):
-            session_id, timestamp, dependencies, selected_dependencies, beliefs, desires, intentions = row[1:]
-
-            if st.button(f"Load Session {idx + 1} ({timestamp})"):
-                # Ensure JSON is properly loaded
-                st.session_state.dependencies = json.loads(dependencies) if isinstance(dependencies, str) else dependencies
-                st.session_state.selected_dependencies = json.loads(selected_dependencies) if isinstance(selected_dependencies, str) else selected_dependencies
-                st.session_state.beliefs = json.loads(beliefs) if isinstance(beliefs, str) else beliefs
-                st.session_state.desires = json.loads(desires) if isinstance(desires, str) else desires
-                st.session_state.intentions = json.loads(intentions) if isinstance(intentions, str) else intentions
-
-                st.success(f"Loaded Session {idx + 1}!")
-
-
-
-# Initialize session state for history storage
-if "history" not in st.session_state:
-    st.session_state.history = []
-
-# Function to save current session data to history
-def save_to_history():
     session_data = {
         "dependencies": st.session_state.dependencies,
         "selected_dependencies": st.session_state.selected_dependencies,
@@ -62,40 +45,55 @@ def save_to_history():
         "desires": st.session_state.desires,
         "intentions": st.session_state.intentions,
     }
-    st.session_state.history.append(session_data)
-    st.success("Analysis saved to history!")
 
-# Function to load a previous session
-def load_from_history(index):
-    session_data = st.session_state.history[index]
-    st.session_state.dependencies = session_data["dependencies"]
-    st.session_state.selected_dependencies = session_data["selected_dependencies"]
-    st.session_state.beliefs = session_data["beliefs"]
-    st.session_state.desires = session_data["desires"]
-    st.session_state.intentions = session_data["intentions"]
-    st.success("Loaded previous analysis!")
-
-# Function to export history as JSON
-def export_history():
-    history_json = json.dumps(st.session_state.history, indent=4)
-    st.download_button(
-        label="Download History JSON",
-        data=history_json,
-        file_name="dependency_analysis_history.json",
-        mime="application/json"
+    cursor.execute(
+        """
+        INSERT INTO chat_history (session_id, dependencies, selected_dependencies, beliefs, desires, intentions)
+        VALUES (%s, %s, %s, %s, %s, %s)
+        """,
+        (st.session_state.session_id, json.dumps(session_data["dependencies"]),
+         json.dumps(session_data["selected_dependencies"]), json.dumps(session_data["beliefs"]),
+         json.dumps(session_data["desires"]), json.dumps(session_data["intentions"]))
     )
+
+    conn.commit()
+    cursor.close()
+    conn.close()
+    st.success("Analysis saved to MYSQL!")
+
+def load_from_database():
+    """Load session history from MYSQL."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT * FROM chat_history ORDER BY timestamp DESC LIMIT 5")
+    history = cursor.fetchall()
+    
+    cursor.close()
+    conn.close()
+
+    return history
 
 # Sidebar for history panel
 with st.sidebar:
     st.header("📜 Analysis History")
-    if st.button("Save Analysis"):
-        save_to_history()
     
-    if st.session_state.history:
-        for idx, session in enumerate(st.session_state.history):
-            if st.button(f"Load Analysis {idx + 1}"):
-                load_from_history(idx)
-        export_history()
+    if st.button("Save Analysis"):
+        save_to_database()
+
+    history_data = load_from_database()
+    
+    if history_data:
+        for idx, row in enumerate(history_data):
+            session_id, timestamp, dependencies, selected_dependencies, beliefs, desires, intentions = row[1:]
+            if st.button(f"Load Session {idx + 1} ({timestamp})"):
+                st.session_state.dependencies = json.loads(dependencies)
+                st.session_state.selected_dependencies = json.loads(selected_dependencies)
+                st.session_state.beliefs = json.loads(beliefs)
+                st.session_state.desires = json.loads(desires)
+                st.session_state.intentions = json.loads(intentions)
+                st.success(f"Loaded Session {idx + 1}!")
+
 # Configure Google AI API
 load_dotenv()  # Load environment variables from .env file
 genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))  # Replace with your actual API Key
