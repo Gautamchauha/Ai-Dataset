@@ -11,7 +11,42 @@ import re
 import random
 from dotenv import load_dotenv
 import json
+from database import save_to_database, load_from_database
+import streamlit as st
+import uuid  # For generating unique session IDs
 
+# Initialize session state variables
+if "session_id" not in st.session_state:
+    st.session_state.session_id = str(uuid.uuid4())  # Generate a unique session ID
+
+# Sidebar for history panel
+with st.sidebar:
+    st.header(" Analysis History")
+
+    if st.button("Save Analysis"):
+        save_to_database(st.session_state.session_id, 
+                         st.session_state.dependencies, 
+                         st.session_state.selected_dependencies,
+                         st.session_state.beliefs, 
+                         st.session_state.desires, 
+                         st.session_state.intentions)
+        st.success("Analysis saved to PostgreSQL!")
+
+    history_data = load_from_database()
+
+    if history_data:
+        for idx, row in enumerate(history_data):
+            session_id, timestamp, dependencies, selected_dependencies, beliefs, desires, intentions = row[1:]
+
+            if st.button(f"Load Session {idx + 1} ({timestamp})"):
+                # Ensure JSON is properly loaded
+                st.session_state.dependencies = json.loads(dependencies) if isinstance(dependencies, str) else dependencies
+                st.session_state.selected_dependencies = json.loads(selected_dependencies) if isinstance(selected_dependencies, str) else selected_dependencies
+                st.session_state.beliefs = json.loads(beliefs) if isinstance(beliefs, str) else beliefs
+                st.session_state.desires = json.loads(desires) if isinstance(desires, str) else desires
+                st.session_state.intentions = json.loads(intentions) if isinstance(intentions, str) else intentions
+
+                st.success(f"Loaded Session {idx + 1}!")
 
 
 
