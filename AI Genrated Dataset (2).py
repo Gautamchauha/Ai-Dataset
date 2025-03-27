@@ -278,23 +278,28 @@ def set_graph_options(net):
     net.set_options(options)
 
 # Function to recursively assign levels and ensure proper left-to-right expansion
+# Function to recursively assign levels and ensure proper left-to-right expansion
 def add_node_with_level(net, node, level, added_nodes, node_levels):
+    # Define colors based on the level
+    colors = ["lightblue", "lightgreen", "lightyellow", "lightcoral", "lightpink"]  # Add more colors if needed
+    color = colors[level] if level < len(colors) else "gray"  # Default to gray if level exceeds color list
+
     if node not in added_nodes:
-        net.add_node(node, label=node, shape="box", size=30, color="lightblue", level=level)
+        net.add_node(node, label=node, shape="box", size=30, color=color, title=node, level=level)  # Set title for hover text
         added_nodes.add(node)
         node_levels[node] = level
 
     if node in st.session_state.selected_dependencies:
         for child in st.session_state.selected_dependencies[node]:
             if child not in added_nodes:
-                net.add_node(child, label=child, shape="box", size=20, color="lightgreen", level=level + 1)
+                child_color = colors[level + 1] if (level + 1) < len(colors) else "gray"  # Color for child nodes
+                net.add_node(child, label=child, shape="box", size=20, color=child_color, title=child, level=level + 1)  # Set title for hover text
                 added_nodes.add(child)
                 node_levels[child] = level + 1
             
             net.add_edge(node, child, color="darkblue", width=2.5)
             # Recursively assign levels for deeper dependencies
             add_node_with_level(net, child, level + 1, added_nodes, node_levels)
-
 # Function to generate the interactive left-to-right dependency graph
 def generate_interactive_graph():
     net = Network(height="750px", width="100%", directed=True)
@@ -318,10 +323,11 @@ def generate_interactive_graph():
     return graph_path
 
 # Button to generate the graph
-if st.button(" Generate Interactive Graph"):
+if st.button("🔄 Generate Interactive Graph"):
     graph_html = generate_interactive_graph()
     with open(graph_html, "r", encoding="utf-8") as file:
         st.components.v1.html(file.read(), height=550)
+
 
 # Button to download the graph
 if os.path.exists(tempfile.gettempdir() + "/interactive_graph.html"):
