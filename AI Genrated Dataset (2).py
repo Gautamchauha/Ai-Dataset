@@ -11,7 +11,7 @@ import re
 import random
 from dotenv import load_dotenv
 
-
+st.set_page_config(page_title="GTR Project" ,layout="wide")
 # Configure Google AI API
 load_dotenv()  # Load environment variables from .env file
 genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))  # Replace with your actual API Key
