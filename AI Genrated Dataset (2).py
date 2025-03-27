@@ -404,4 +404,13 @@ if st.button(" Generate Dataset"):
                 file_name="synthetic_dataset.csv",
                 mime="text/csv"
             )                                              
-           
+           st.markdown(
+    """
+    <hr style="border:1px solid gray;margin-top:20px;margin-bottom:10px;">
+    <div style="text-align:center;">
+        <p>© 2025 All rights reserved.</p>
+        <p>Developed by Himistu Lab.</p>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
